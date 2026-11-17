@@ -1,0 +1,36 @@
+name: Test PS1 Animation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  record-script:
+    runs-on: windows-latest
+
+    steps:
+      - name: Скачиваем файлы репозитория
+        uses: actions/checkout@v4
+
+      - name: Устанавливаем FFmpeg для записи экрана
+        run: choco install ffmpeg -y
+
+      - name: Запускаем скрипт на рабочем столе и пишем видео
+        shell: powershell
+        run: |
+          $scriptPath = (Resolve-Path ".\More poverh vseh okon.ps1").Path
+          
+          # Создаем задачу, которая запустит окно строго на текущем рабочем столе
+          $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Normal -File `"$scriptPath`""
+          $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
+          Register-ScheduledTask -TaskName "RunMyScript" -Action $action -Principal $principal -Force | Out-Null
+          
+          Start-ScheduledTask -TaskName "RunMyScript"
+          Start-Sleep -Seconds 3
+          
+          ffmpeg -y -f gdigrab -framerate 30 -i desktop -t 15 -c:v libx264 -pix_fmt yuv420p result.mp4
+
+      - name: Сохраняем готовое видео для скачивания
+        uses: actions/upload-artifact@v4
+        with:
+          name: animation-video
+          path: result.mp4
