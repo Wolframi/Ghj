@@ -8,32 +8,21 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Скачиваем файлы репозитория
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Устанавливаем FFmpeg для записи экрана
-        run: choco install ffmpeg -y
+      - run: choco install ffmpeg -y
 
-      - name: Запускаем скрипт (STA) и записываем видео
-        shell: powershell
+      - shell: powershell
         run: |
-          # Автоматически берем первый найденный .ps1 файл в репозитории
           $file = Get-ChildItem -Filter "*.ps1" | Select-Object -First 1
-          if (-not $file) { throw "Файл .ps1 не найден!" }
-          Write-Host "Найден файл: $($file.FullName)"
-
-          # Пересохраняем в UTF-8 с BOM, чтобы не было проблем с русским текстом внутри
+          if (-not $file) { throw "PS1 file not found" }
           $content = Get-Content -Path $file.FullName -Raw -Encoding UTF8
           [System.IO.File]::WriteAllText("$PWD\run.ps1", $content, [System.Text.UTF8Encoding]::new($true))
-
-          # Запускаем графический скрипт в режиме -STA и пишем ошибки в error.txt
-          Start-Process powershell.exe -ArgumentList "-STA -NoProfile -ExecutionPolicy Bypass -File `"$PWD\run.ps1`"" -RedirectStandardError "$PWD\error.txt"
-
+          Start-Process powershell.exe -ArgumentList "-STA", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "$PWD\run.ps1" -RedirectStandardError "$PWD\error.txt"
           Start-Sleep -Seconds 3
           ffmpeg -y -f gdigrab -framerate 30 -i desktop -t 15 -c:v libx264 -pix_fmt yuv420p result.mp4
 
-      - name: Сохраняем видео и лог ошибок
-        if: always()
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: animation-video
